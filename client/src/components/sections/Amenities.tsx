@@ -13,46 +13,12 @@ import { EASE_OUT_EXPO } from "@/components/motion/index";
 const AMENITIES_PHOTO = "/manus-storage/IMG_0898_e683b78b.jpg";
 
 const AMENITIES = [
-  {
-    icon: "🔐",
-    label: "24/7 Access",
-    desc: "Keycard entry around the clock, every day of the year.",
-  },
-  {
-    icon: "📦",
-    label: "Mail Handling",
-    desc: "Package and mail receipt for all tenants.",
-  },
-  {
-    icon: "🌐",
-    label: "High-Speed Internet",
-    desc: "Fiber internet throughout the building.",
-  },
-  {
-    icon: "🅿️",
-    label: "On-Site Parking",
-    desc: "Dedicated parking for tenants and their clients.",
-  },
-  {
-    icon: "🔧",
-    label: "On-Site Management",
-    desc: "Responsive management team on the property.",
-  },
-  {
-    icon: "📷",
-    label: "Security Cameras",
-    desc: "24/7 surveillance throughout the building.",
-  },
-  {
-    icon: "🏗️",
-    label: "Loading Dock",
-    desc: "Ground-floor dock access for large deliveries.",
-  },
-  {
-    icon: "💡",
-    label: "Utilities Included",
-    desc: "Electric, water, and heat included in most units.",
-  },
+  { icon: "🔐", label: "24/7 Access" },
+  { icon: "📦", label: "Mail Handling" },
+  { icon: "🅿️", label: "On-Site Parking" },
+  { icon: "🔧", label: "On-Site Management" },
+  { icon: "🏗️", label: "Loading Dock" },
+  { icon: "💡", label: "Utilities Included" },
 ];
 
 export function Amenities() {
@@ -92,15 +58,7 @@ export function Amenities() {
             Everything<br />Included
           </motion.h2>
 
-          <motion.p
-            className="text-white/50 text-[13px] sm:text-[15px] leading-relaxed max-w-xs md:text-right md:pt-2 font-mono"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 1.0, ease: EASE_OUT_EXPO, delay: 0.2 }}
-          >
-            Every unit comes with the infrastructure you need to focus on your work — not your building.
-          </motion.p>
+
         </div>
 
         {/* ── Spacer ── */}
@@ -126,9 +84,7 @@ export function Amenities() {
               <div className="text-white text-[14px] sm:text-[16px] font-normal mb-2 font-mono">
                 {item.label}
               </div>
-              <div className="text-white/40 text-[12px] sm:text-[14px] leading-relaxed font-mono">
-                {item.desc}
-              </div>
+
             </motion.div>
           ))}
         </motion.div>

@@ -1,40 +1,33 @@
 /**
  * Canal Creative — Application Modal
  * Design: Full-screen slide-up panel, Space Mono, pure black
- * - Triggered by "Apply Now" tab/button anywhere on the page
+ * - Triggered by "Apply Now" tab anywhere on the page
  * - Multi-step form: Personal → Business → Space → Review
- * - Progress bar at top
- * - Smooth framer-motion transitions between steps
- * - Mailto submission (no backend required)
+ * - Progress stepper at top
+ * - Submits via tRPC → notifyOwner → delivered to site owner
  */
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Check, Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface FormData {
-  // Step 1 — Personal
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-
-  // Step 2 — Business
   businessName: string;
   businessType: string;
   businessDescription: string;
   website: string;
-
-  // Step 3 — Space
   spaceType: string;
   sqftNeeded: string;
   moveInDate: string;
   budget: string;
   leaseLength: string;
   additionalNeeds: string;
-
-  // Honeypot
   honeypot: string;
 }
 
@@ -54,7 +47,7 @@ const labelClass =
 const selectClass =
   "w-full bg-black border border-white/12 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors font-mono appearance-none";
 
-// ── Step 1: Personal Info ────────────────────────────────────────────────────
+// ── Step 1: Personal ─────────────────────────────────────────────────────────
 function StepPersonal({ data, onChange }: { data: FormData; onChange: (k: keyof FormData, v: string) => void }) {
   return (
     <div className="flex flex-col gap-5">
@@ -88,7 +81,7 @@ function StepPersonal({ data, onChange }: { data: FormData; onChange: (k: keyof 
   );
 }
 
-// ── Step 2: Business Info ────────────────────────────────────────────────────
+// ── Step 2: Business ─────────────────────────────────────────────────────────
 function StepBusiness({ data, onChange }: { data: FormData; onChange: (k: keyof FormData, v: string) => void }) {
   return (
     <div className="flex flex-col gap-5">
@@ -133,7 +126,7 @@ function StepBusiness({ data, onChange }: { data: FormData; onChange: (k: keyof 
   );
 }
 
-// ── Step 3: Space Needs ──────────────────────────────────────────────────────
+// ── Step 3: Space ────────────────────────────────────────────────────────────
 function StepSpace({ data, onChange }: { data: FormData; onChange: (k: keyof FormData, v: string) => void }) {
   return (
     <div className="flex flex-col gap-5">
@@ -203,7 +196,7 @@ function StepSpace({ data, onChange }: { data: FormData; onChange: (k: keyof For
       <div>
         <label className={labelClass}>Additional Needs or Notes</label>
         <textarea value={data.additionalNeeds} onChange={e => onChange("additionalNeeds", e.target.value)}
-          rows={3} placeholder="Anything specific you need — loading dock access, natural light, ground floor, etc."
+          rows={3} placeholder="Anything specific — loading dock, natural light, ground floor, etc."
           className={`${inputClass} resize-none`} />
       </div>
     </div>
@@ -227,12 +220,11 @@ function StepReview({ data }: { data: FormData }) {
     ["Lease", data.leaseLength || "No preference"],
     ["Notes", data.additionalNeeds || "—"],
   ];
-
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h3 className="text-white text-xl font-mono font-light mb-1">Review Your Application</h3>
-        <p className="text-white/40 text-sm font-mono">Everything look right? Submitting will open your email app with a pre-filled message.</p>
+        <p className="text-white/40 text-sm font-mono">Everything look right? Hit Submit and we'll be in touch.</p>
       </div>
       <div className="border border-white/10 rounded-lg overflow-hidden">
         {rows.map(([label, value], i) => (
@@ -254,44 +246,56 @@ interface ApplicationModalProps {
 
 export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
   const [step, setStep] = useState(0);
-  const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
+  const [direction, setDirection] = useState(1);
   const [data, setData] = useState<FormData>(INITIAL);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const submitMutation = trpc.spaceApplication.submit.useMutation({
+    onSuccess: () => {
+      setSubmitted(true);
+      setSubmitError(null);
+    },
+    onError: (err: { message?: string }) => {
+      setSubmitError(err.message || "Something went wrong. Please try again.");
+    },
+  });
 
   function onChange(key: keyof FormData, value: string) {
     setData(prev => ({ ...prev, [key]: value }));
   }
 
-  function next() {
-    setDirection(1);
-    setStep(s => Math.min(s + 1, STEPS.length - 1));
-  }
-
-  function back() {
-    setDirection(-1);
-    setStep(s => Math.max(s - 1, 0));
-  }
+  function next() { setDirection(1); setStep(s => Math.min(s + 1, STEPS.length - 1)); }
+  function back() { setDirection(-1); setStep(s => Math.max(s - 1, 0)); }
 
   function submit() {
     if (data.honeypot) return;
-    const subject = encodeURIComponent(`Canal Creative Application — ${data.firstName} ${data.lastName} (${data.businessName})`);
-    const body = encodeURIComponent(
-      `=== CANAL CREATIVE SPACE APPLICATION ===\n\n` +
-      `PERSONAL\nName: ${data.firstName} ${data.lastName}\nEmail: ${data.email}\nPhone: ${data.phone || "—"}\n\n` +
-      `BUSINESS\nBusiness Name: ${data.businessName}\nType: ${data.businessType}\nDescription: ${data.businessDescription}\nWebsite: ${data.website || "—"}\n\n` +
-      `SPACE NEEDS\nSpace Type: ${data.spaceType}\nSq Ft: ${data.sqftNeeded || "Not specified"}\nMove-in: ${data.moveInDate || "Flexible"}\nBudget: ${data.budget || "Flexible"}\nLease: ${data.leaseLength || "No preference"}\nNotes: ${data.additionalNeeds || "—"}`
-    );
-    window.location.href = `mailto:andres@canalcreative.net?subject=${subject}&body=${body}`;
-    setSubmitted(true);
+    setSubmitError(null);
+    submitMutation.mutate({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone || undefined,
+      businessName: data.businessName,
+      businessType: data.businessType,
+      businessDescription: data.businessDescription,
+      website: data.website || undefined,
+      spaceType: data.spaceType,
+      sqftNeeded: data.sqftNeeded || undefined,
+      moveInDate: data.moveInDate || undefined,
+      budget: data.budget || undefined,
+      leaseLength: data.leaseLength || undefined,
+      additionalNeeds: data.additionalNeeds || undefined,
+    });
   }
 
   function handleClose() {
     onClose();
-    // Reset after close animation
     setTimeout(() => {
       setStep(0);
       setData(INITIAL);
       setSubmitted(false);
+      setSubmitError(null);
     }, 400);
   }
 
@@ -312,7 +316,6 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -322,7 +325,6 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
             onClick={handleClose}
           />
 
-          {/* Panel */}
           <motion.div
             className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center p-0 sm:p-6"
             initial={{ opacity: 0 }}
@@ -338,52 +340,36 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={e => e.stopPropagation()}
             >
-              {/* ── Header ── */}
+              {/* Header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-orange-500" />
-                  <span className="text-white/60 text-[11px] tracking-[0.2em] uppercase font-mono">
-                    Space Application
-                  </span>
+                  <span className="text-white/60 text-[11px] tracking-[0.2em] uppercase font-mono">Space Application</span>
                 </div>
-                <button
-                  onClick={handleClose}
-                  className="text-white/40 hover:text-white transition-colors p-1"
-                >
+                <button onClick={handleClose} className="text-white/40 hover:text-white transition-colors p-1">
                   <X size={18} />
                 </button>
               </div>
 
-              {/* ── Progress bar ── */}
+              {/* Progress stepper */}
               {!submitted && (
                 <div className="px-6 pb-4 shrink-0">
                   <div className="flex items-center gap-2 mb-3">
                     {STEPS.map((label, i) => (
                       <div key={label} className="flex items-center gap-2 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <div
-                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono transition-colors duration-300 ${
-                              i < step
-                                ? "bg-orange-600 text-white"
-                                : i === step
-                                ? "bg-white text-black"
-                                : "bg-white/10 text-white/30"
-                            }`}
-                          >
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono transition-colors duration-300 ${
+                            i < step ? "bg-orange-600 text-white" : i === step ? "bg-white text-black" : "bg-white/10 text-white/30"
+                          }`}>
                             {i < step ? <Check size={10} /> : i + 1}
                           </div>
                           <span className={`text-[10px] font-mono hidden sm:block transition-colors duration-300 ${
                             i === step ? "text-white" : i < step ? "text-orange-500" : "text-white/25"
-                          }`}>
-                            {label}
-                          </span>
+                          }`}>{label}</span>
                         </div>
                         {i < STEPS.length - 1 && (
                           <div className="flex-1 h-px bg-white/10 mx-1">
-                            <div
-                              className="h-full bg-orange-600 transition-all duration-500"
-                              style={{ width: i < step ? "100%" : "0%" }}
-                            />
+                            <div className="h-full bg-orange-600 transition-all duration-500" style={{ width: i < step ? "100%" : "0%" }} />
                           </div>
                         )}
                       </div>
@@ -392,7 +378,7 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
                 </div>
               )}
 
-              {/* ── Form content ── */}
+              {/* Form content */}
               <div className="flex-1 overflow-y-auto px-6 pb-4">
                 {submitted ? (
                   <motion.div
@@ -404,9 +390,9 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
                     <div className="w-14 h-14 rounded-full bg-orange-600/20 border border-orange-600/40 flex items-center justify-center mb-2">
                       <Check size={24} className="text-orange-500" />
                     </div>
-                    <h3 className="text-white text-xl font-mono font-light">Application Sent</h3>
+                    <h3 className="text-white text-xl font-mono font-light">Application Received</h3>
                     <p className="text-white/45 text-sm font-mono max-w-xs leading-relaxed">
-                      Your application was sent to andres@canalcreative.net. We'll be in touch within 1–2 business days.
+                      We got your application and will be in touch within 1–2 business days at <span className="text-white/70">{data.email}</span>.
                     </p>
                     <button
                       onClick={handleClose}
@@ -433,9 +419,16 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
                     </motion.div>
                   </AnimatePresence>
                 )}
+
+                {/* Error message */}
+                {submitError && (
+                  <div className="mt-4 px-4 py-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm font-mono">
+                    {submitError}
+                  </div>
+                )}
               </div>
 
-              {/* ── Footer / Navigation ── */}
+              {/* Footer nav */}
               {!submitted && (
                 <div className="flex items-center justify-between px-6 py-5 border-t border-white/8 shrink-0">
                   <button
@@ -447,15 +440,9 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
                   </button>
 
                   {/* Honeypot */}
-                  <input
-                    type="text"
-                    name="honeypot"
-                    value={data.honeypot}
+                  <input type="text" name="honeypot" value={data.honeypot}
                     onChange={e => onChange("honeypot", e.target.value)}
-                    className="hidden"
-                    tabIndex={-1}
-                    autoComplete="off"
-                  />
+                    className="hidden" tabIndex={-1} autoComplete="off" />
 
                   {step < STEPS.length - 1 ? (
                     <button
@@ -468,9 +455,15 @@ export function ApplicationModal({ isOpen, onClose }: ApplicationModalProps) {
                   ) : (
                     <button
                       onClick={submit}
-                      className="flex items-center gap-1.5 px-5 py-2.5 btn-orange text-sm rounded-full font-mono font-medium"
+                      disabled={submitMutation.isPending}
+                      className="flex items-center gap-1.5 px-5 py-2.5 text-sm rounded-full font-mono font-medium disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                      style={{ backgroundColor: "oklch(0.58 0.19 38)", color: "white" }}
                     >
-                      Submit Application <ChevronRight size={15} />
+                      {submitMutation.isPending ? (
+                        <><Loader2 size={14} className="animate-spin" /> Sending...</>
+                      ) : (
+                        <>Submit Application <ChevronRight size={15} /></>
+                      )}
                     </button>
                   )}
                 </div>
