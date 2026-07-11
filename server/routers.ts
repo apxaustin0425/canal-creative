@@ -2,6 +2,7 @@ import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { notifyOwner } from "./_core/notification";
+import { sendApplicationEmail } from "./email";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 
@@ -70,8 +71,16 @@ export const appRouter = router({
           `Submitted: ${new Date().toLocaleString("en-US", { timeZone: "America/New_York" })} ET`,
         ].join("\n");
 
-        const delivered = await notifyOwner({ title, content });
-        return { success: true, delivered };
+        // Send both: owner notification (in-app) + email to aaacuna1@gmail.com
+        const [delivered, emailed] = await Promise.allSettled([
+          notifyOwner({ title, content }),
+          sendApplicationEmail(input),
+        ]);
+        return {
+          success: true,
+          delivered: delivered.status === "fulfilled" ? delivered.value : false,
+          emailed: emailed.status === "fulfilled" ? emailed.value : false,
+        };
       }),
   }),
 });
