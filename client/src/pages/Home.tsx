@@ -21,6 +21,8 @@ import { FAQ } from "@/components/sections/FAQ";
 import { Contact } from "@/components/sections/Contact";
 import { Relief } from "@/components/sections/Relief";
 import { Footer } from "@/components/sections/Footer";
+import { ApplicationModal } from "@/components/sections/ApplicationModal";
+import { ApplyTab } from "@/components/sections/ApplyTab";
 
 function scrollTo(id: string) {
   const el = document.getElementById(id);
@@ -29,6 +31,7 @@ function scrollTo(id: string) {
 
 export default function Home() {
   const [entranceComplete, setEntranceComplete] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
 
   // Entrance completes after 800ms (matches Hero delay)
   useEffect(() => {
@@ -43,6 +46,11 @@ export default function Home() {
       className="min-h-screen bg-black text-white"
       style={{ fontFamily: '"Space Mono", monospace' }}
     >
+      {/* ── Apply tab (fixed right edge) ── */}
+      <ApplyTab onClick={() => setApplyOpen(true)} />
+
+      {/* ── Application modal ── */}
+      <ApplicationModal isOpen={applyOpen} onClose={() => setApplyOpen(false)} />
       {/* ── Navigation ── */}
       <Navbar
         entranceComplete={entranceComplete}
